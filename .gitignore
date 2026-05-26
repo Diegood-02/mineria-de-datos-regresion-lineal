@@ -1,0 +1,12 @@
+# Binarios compilados
+*.exe
+*.dll
+*.lib
+
+# Archivos de sistema
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Claude Code (configuración interna)
+.claude/
