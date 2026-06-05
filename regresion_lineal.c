@@ -1,14 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <mysql.h>
 
-#define HOST       "127.0.0.1"
-#define USER       "root"
-#define PASSWORD   ""
-#define DATABASE   "mineria_datos"
-#define PORT       3306
-#define PLUGIN_DIR "C:\\Program Files\\MySQL\\MySQL Workbench 8.0 CE"
+// Valores por defecto (entorno local XAMPP). Se pueden sobreescribir con
+// variables de entorno para no exponer credenciales en el codigo fuente.
+#define DEF_HOST     "127.0.0.1"
+#define DEF_USER     "root"
+#define DEF_PASSWORD ""
+#define DEF_DATABASE "mineria_datos"
+#define DEF_PORT     3306
+#define PLUGIN_DIR   "C:\\Program Files\\MySQL\\MySQL Workbench 8.0 CE"
+
+// Devuelve el valor de la variable de entorno o el valor por defecto.
+static const char *env_o_def(const char *nombre, const char *valor_def) {
+    const char *v = getenv(nombre);
+    return (v && *v) ? v : valor_def;
+}
 
 typedef struct {
     char mes[30];
@@ -32,6 +41,25 @@ void regresion_lineal(Dato *datos, int n, double *b0, double *b1) {
     *b0 = (suma_y - (*b1) * suma_x) / n;
 }
 
+void metricas(Dato *datos, int n, double b0, double b1,
+              double *r2, double *mse, double *rmse) {
+    double suma_y = 0;
+    for (int i = 0; i < n; i++) suma_y += datos[i].ventas;
+    double y_media = suma_y / n;
+
+    double ss_tot = 0, ss_res = 0;
+    for (int i = 0; i < n; i++) {
+        double y     = datos[i].ventas;
+        double y_est = b0 + b1 * datos[i].inversion;
+        ss_tot += (y - y_media) * (y - y_media);
+        ss_res += (y - y_est) * (y - y_est);
+    }
+
+    *r2   = (ss_tot > 0) ? 1.0 - ss_res / ss_tot : 1.0;
+    *mse  = ss_res / n;
+    *rmse = sqrt(*mse);
+}
+
 int main() {
     MYSQL *conn = mysql_init(NULL);
     if (!conn) {
@@ -41,7 +69,14 @@ int main() {
 
     mysql_options(conn, MYSQL_PLUGIN_DIR, PLUGIN_DIR);
 
-    if (!mysql_real_connect(conn, HOST, USER, PASSWORD, DATABASE, PORT, NULL, 0)) {
+    const char *host = env_o_def("DB_HOST", DEF_HOST);
+    const char *user = env_o_def("DB_USER", DEF_USER);
+    const char *pass = env_o_def("DB_PASS", DEF_PASSWORD);
+    const char *db   = env_o_def("DB_NAME", DEF_DATABASE);
+    const char *port_s = getenv("DB_PORT");
+    unsigned int port = (port_s && *port_s) ? (unsigned int)atoi(port_s) : DEF_PORT;
+
+    if (!mysql_real_connect(conn, host, user, pass, db, port, NULL, 0)) {
         fprintf(stderr, "Error de conexion: %s\n", mysql_error(conn));
         mysql_close(conn);
         return 1;
@@ -91,6 +126,16 @@ int main() {
     printf("Intercepto (b0): %.4f\n", b0);
     printf("Pendiente  (b1): %.4f\n", b1);
     printf("Ecuacion:  Y = %.2f + %.2f * X\n", b0, b1);
+
+    double r2, mse, rmse;
+    metricas(datos, n, b0, b1, &r2, &mse, &rmse);
+
+    printf("\n========================================\n");
+    printf("  METRICAS DE BONDAD DE AJUSTE\n");
+    printf("========================================\n");
+    printf("R^2  (determinacion): %.4f  (%.2f%% explicado)\n", r2, r2 * 100);
+    printf("MSE  (error cuad. medio): %.4f\n", mse);
+    printf("RMSE (raiz del MSE): %.4f\n", rmse);
 
     printf("\n========================================\n");
     printf("  PREDICCIONES\n");

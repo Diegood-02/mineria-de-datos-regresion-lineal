@@ -10,8 +10,10 @@ Implementa un modelo de **regresión lineal simple** conectado a una base de dat
 
 - Almacena datos de **Inversión (X)** y **Ventas (Y)** en una base de datos MySQL.
 - Calcula la ecuación de regresión lineal: `Y = b0 + b1 * X`
+- Reporta **métricas de bondad de ajuste**: R² (coeficiente de determinación), MSE y RMSE.
 - Permite predecir ventas para cualquier valor de inversión.
 - Es **elástico**: agregar más datos a la BD actualiza el modelo automáticamente.
+- Incluye **validación de outliers** y consultas seguras contra inyección SQL.
 
 ---
 
@@ -32,6 +34,8 @@ Implementa un modelo de **regresión lineal simple** conectado a una base de dat
 
 ```
 ├── ventas.sql                  Script para crear la base de datos y cargar datos
+├── config.example.php          Plantilla de credenciales (copiar a config.php)
+├── config.php                  Credenciales reales de la BD (NO se sube a git)
 ├── regresion_lineal.py         Regresión lineal desde Python
 ├── regresion_lineal.c          Regresión lineal desde C
 ├── regresion_lineal.exe        Ejecutable compilado (Windows x64)
@@ -64,6 +68,8 @@ htdocs/mineria_datos/           (carpeta en XAMPP)
 1. Iniciar MySQL desde el panel de XAMPP.
 2. Abrir MySQL Workbench y conectarse a `127.0.0.1:3306` con usuario `root` (sin contraseña).
 3. Ejecutar el archivo `ventas.sql`.
+4. Copiar `config.example.php` a `config.php` y ajustar las credenciales si fuera necesario.
+   - Para Python/C también puedes definir las variables de entorno `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME` (si no, usan los valores por defecto de XAMPP).
 
 Datos iniciales:
 
@@ -101,6 +107,11 @@ http://localhost/mineria_datos/
 ```
 Ecuación:  Y = 26.67 + 2.50 * X
 
+Métricas de bondad de ajuste:
+  R²   = 0.9868   (98.68% explicado)
+  MSE  = 5.5556
+  RMSE = 2.3570
+
 Inversión =  10  =>  Ventas estimadas =  51.67
 Inversión =  20  =>  Ventas estimadas =  76.67
 Inversión =  30  =>  Ventas estimadas = 101.67
@@ -114,8 +125,9 @@ Inversión =  40  =>  Ventas estimadas = 126.67
 El dashboard web (`index.php`) incluye:
 - Gráfica interactiva con puntos reales y línea de regresión
 - Tabla con datos de la base de datos
+- Tarjetas con R² y panel de bondad de ajuste (R², MSE, RMSE) con interpretación
 - Calculadora de predicción (ingresa X, obtiene Y estimada)
-- Formulario para agregar nuevos registros directamente desde el navegador
+- Formulario para agregar nuevos registros con **sentencias preparadas** (anti SQL Injection) y **alerta de outliers** (±2.5σ)
 
 ---
 

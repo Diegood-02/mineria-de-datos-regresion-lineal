@@ -1,17 +1,21 @@
 import sys
 import io
+import os
+import math
 import mysql.connector
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 def conectar():
+    # Credenciales tomadas de variables de entorno (con valores por defecto
+    # para el entorno local de XAMPP). Evita exponer contrasenas en el codigo.
     return mysql.connector.connect(
-        host="127.0.0.1",
-        port=3306,
-        user="root",
-        password="",
-        database="mineria_datos"
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3306")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASS", ""),
+        database=os.getenv("DB_NAME", "mineria_datos")
     )
 
 def obtener_datos(cursor):
@@ -32,6 +36,19 @@ def regresion_lineal(datos):
     b0 = (suma_y - b1 * suma_x) / n
 
     return b0, b1
+
+def metricas(datos, b0, b1):
+    n = len(datos)
+    y = [fila[2] for fila in datos]
+    y_media = sum(y) / n
+
+    ss_tot = sum((yi - y_media) ** 2 for yi in y)
+    ss_res = sum((fila[2] - (b0 + b1 * fila[1])) ** 2 for fila in datos)
+
+    r2   = 1 - ss_res / ss_tot if ss_tot > 0 else 1.0
+    mse  = ss_res / n
+    rmse = math.sqrt(mse)
+    return r2, mse, rmse
 
 def predecir(b0, b1, x):
     return b0 + b1 * x
@@ -58,6 +75,14 @@ def main():
     print(f"Intercepto  (b0): {b0:.4f}")
     print(f"Pendiente   (b1): {b1:.4f}")
     print(f"Ecuacion:  Y = {b0:.2f} + {b1:.2f} * X")
+
+    r2, mse, rmse = metricas(datos, b0, b1)
+    print("\n" + "=" * 40)
+    print("  METRICAS DE BONDAD DE AJUSTE")
+    print("=" * 40)
+    print(f"R^2  (determinacion): {r2:.4f}  ({float(r2) * 100:.2f}% explicado)")
+    print(f"MSE  (error cuad. medio): {mse:.4f}")
+    print(f"RMSE (raiz del MSE): {rmse:.4f}")
 
     print("\n" + "=" * 40)
     print("  PREDICCIONES")

@@ -10,3 +10,6 @@ desktop.ini
 
 # Claude Code (configuración interna)
 .claude/
+
+# Credenciales de la base de datos (usar config.example.php como plantilla)
+config.php

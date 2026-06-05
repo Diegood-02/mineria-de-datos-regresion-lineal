@@ -16,6 +16,7 @@
 7. [C](#7-c)
 8. [Cómo ejecutar cada componente](#8-cómo-ejecutar-cada-componente)
 9. [Estructura de archivos del proyecto](#9-estructura-de-archivos-del-proyecto)
+10. [Mejoras implementadas (observaciones del profesor)](#10-mejoras-implementadas-observaciones-del-profesor)
 
 ---
 
@@ -163,6 +164,37 @@ Y = 26.67 + 2.50 * X
 | 50 | 151.67 |
 | 60 | 176.67 |
 
+### Métricas de bondad de ajuste
+
+Para saber **qué tan bien** la recta explica los datos se calculan tres métricas:
+
+```
+ȳ      = ΣY / n                         (media de Y)
+SS_tot = Σ(yᵢ - ȳ)²                     (variabilidad total)
+ŷᵢ     = b0 + b1·xᵢ                     (valor estimado)
+SS_res = Σ(yᵢ - ŷᵢ)²                    (error no explicado)
+
+         SS_res
+R² = 1 - ──────       (0 a 1; cuanto más cerca de 1, mejor el ajuste)
+         SS_tot
+
+MSE  = SS_res / n     (error cuadrático medio)
+RMSE = √MSE           (error en las mismas unidades que Y)
+```
+
+**Cálculo con los datos del proyecto:**
+
+```
+ŷ = [51.67, 76.67, 101.67]
+SS_res = (50-51.67)² + (80-76.67)² + (100-101.67)² = 16.6667
+ȳ      = 76.6667
+SS_tot = (50-76.67)² + (80-76.67)² + (100-76.67)² = 1266.6667
+
+R²   = 1 - 16.6667 / 1266.6667 = 0.9868   → el modelo explica el 98.68% de la variación
+MSE  = 16.6667 / 3 = 5.5556
+RMSE = √5.5556 = 2.3570
+```
+
 ---
 
 ## 5. Python
@@ -194,18 +226,21 @@ python.exe -m pip install mysql-connector-python --break-system-packages
 ```python
 import sys
 import io
+import os
+import math
 import mysql.connector
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 def conectar():
+    # Credenciales desde variables de entorno (con valores por defecto de XAMPP)
     return mysql.connector.connect(
-        host="127.0.0.1",
-        port=3306,
-        user="root",
-        password="",
-        database="mineria_datos"
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=int(os.getenv("DB_PORT", "3306")),
+        user=os.getenv("DB_USER", "root"),
+        password=os.getenv("DB_PASS", ""),
+        database=os.getenv("DB_NAME", "mineria_datos")
     )
 
 def obtener_datos(cursor):
@@ -375,6 +410,8 @@ regresion_lineal.exe
 Mineria de Datos/
 │
 ├── ventas.sql                  Script SQL para crear la BD y la tabla
+├── config.example.php          Plantilla de credenciales (copiar a config.php)
+├── config.php                  Credenciales reales (NO se sube a git)
 ├── regresion_lineal.py         Script Python de regresión lineal
 ├── regresion_lineal.c          Programa C de regresión lineal
 ├── regresion_lineal.exe        Ejecutable compilado de C
@@ -391,6 +428,62 @@ C:\xampp\htdocs\mineria_datos/
 ├── regresion.php               Script PHP básico de regresión
 └── index.php                   Dashboard web completo
 ```
+
+---
+
+## 10. Mejoras implementadas (observaciones del profesor)
+
+A partir de la retroalimentación del profesor se incorporaron las siguientes optimizaciones, orientadas a acercar el prototipo a un entorno más robusto.
+
+### 10.1 Métricas de bondad de ajuste (R², MSE, RMSE)
+Los tres componentes (Python, PHP, C) ahora calculan e imprimen **R²**, **MSE** y **RMSE** además de los coeficientes (ver fórmulas en la [sección 4](#4-regresión-lineal--teoría)).
+- **R²** indica el porcentaje de la variabilidad de las ventas explicada por la inversión (valor de confianza del modelo).
+- **MSE / RMSE** miden la precisión: el error promedio entre el valor real y el estimado.
+- En el dashboard se muestran como tarjetas y en un panel de "Bondad de Ajuste" con interpretación en lenguaje natural.
+
+### 10.2 Seguridad: sentencias preparadas (anti SQL Injection)
+El `INSERT` del dashboard (`index.php`) **ya no concatena variables** en la consulta. Se migró a **sentencias preparadas** con `mysqli`:
+```php
+$stmt = $conn->prepare("INSERT INTO inversion_ventas (mes, inversion, ventas) VALUES (?, ?, ?)");
+$stmt->bind_param("sdd", $mes, $inversion, $ventas);
+$stmt->execute();
+$stmt->close();
+```
+Los parámetros se envían separados de la sentencia SQL, eliminando el riesgo de inyección.
+
+### 10.3 Credenciales fuera del código fuente
+- **PHP:** las credenciales se movieron a `config.php`, cargado con `require_once`. Este archivo está en `.gitignore` y se distribuye una plantilla `config.example.php`.
+- **Python y C:** las credenciales se leen de **variables de entorno** (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASS`, `DB_NAME`) con valores por defecto para el entorno local de XAMPP.
+
+```python
+# Python
+host=os.getenv("DB_HOST", "127.0.0.1")
+```
+```c
+/* C */
+const char *host = env_o_def("DB_HOST", DEF_HOST);
+```
+
+### 10.4 Validación de datos: detección de outliers
+Al agregar un registro desde el dashboard, antes de insertarlo se calcula la media (μ) y la desviación estándar (σ) de las inversiones existentes. Si el valor nuevo cae fuera de **μ ± 2.5σ**, se muestra una **advertencia** (el registro se inserta igual, pero se avisa que podría sesgar la pendiente de la recta).
+
+### 10.5 Recomendaciones de escalabilidad (no implementadas, documentadas)
+Para volúmenes masivos (millones de registros), recalcular el modelo en cada carga de página sería ineficiente. La evolución natural sería:
+- **Pre-cálculo en segundo plano:** ejecutar el script de Python o C periódicamente y guardar b0, b1, R², MSE en una **tabla de metadatos**; el dashboard solo leería esos resultados.
+- **Listas ligadas en C:** sustituir el `malloc()` de tamaño fijo por una estructura dinámica si el volumen crece.
+- **Regresión polinomial o múltiple:** para relaciones no lineales o con varias variables independientes.
+- **Exportación de reportes PDF** desde el dashboard para la toma de decisiones ejecutivas.
+
+| Categoría | Mejora | Estado |
+|---|---|---|
+| Estadística | R², MSE, RMSE | ✅ Implementado |
+| Seguridad | Sentencias preparadas | ✅ Implementado |
+| Seguridad | Credenciales fuera del código (config / env) | ✅ Implementado |
+| Validación | Detección de outliers (±2.5σ) | ✅ Implementado |
+| Arquitectura | Pre-cálculo en tabla de metadatos | 📋 Documentado |
+| Arquitectura | Regresión polinomial / múltiple | 📋 Documentado |
+| UX/UI | Exportación PDF | 📋 Documentado |
+| C | Listas ligadas | 📋 Documentado |
 
 ---
 

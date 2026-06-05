@@ -1,18 +1,51 @@
 <?php
-$conn = new mysqli("127.0.0.1", "root", "", "mineria_datos", 3306);
+require_once __DIR__ . '/config.php';
+
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
 if ($conn->connect_error) die("Error de conexion: " . $conn->connect_error);
 
 // Insertar nuevo registro
-$msg = "";
+$msg     = "";
+$msg_tipo = "info"; // info | warn | error
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['mes'])) {
-    $mes      = $conn->real_escape_string(trim($_POST['mes']));
+    $mes       = trim($_POST['mes']);
     $inversion = (float)$_POST['inversion'];
     $ventas    = (float)$_POST['ventas'];
+
     if ($mes && $inversion > 0 && $ventas > 0) {
-        $conn->query("INSERT INTO inversion_ventas (mes, inversion, ventas) VALUES ('$mes', $inversion, $ventas)");
-        $msg = "Registro agregado correctamente.";
+        // --- Deteccion de valores atipicos (outliers) sobre la inversion existente ---
+        $aviso_outlier = "";
+        $prev = $conn->query("SELECT inversion FROM inversion_ventas");
+        $vals = [];
+        while ($f = $prev->fetch_assoc()) $vals[] = (float)$f['inversion'];
+        if (count($vals) >= 3) {
+            $media = array_sum($vals) / count($vals);
+            $var   = array_sum(array_map(fn($v) => ($v - $media) ** 2, $vals)) / count($vals);
+            $desv  = sqrt($var);
+            if ($desv > 0 && abs($inversion - $media) > 2.5 * $desv) {
+                $aviso_outlier = sprintf(
+                    " Advertencia: la inversion %.2f esta fuera del rango habitual (media %.2f +/- 2.5σ = %.2f). Puede sesgar el modelo.",
+                    $inversion, $media, 2.5 * $desv
+                );
+            }
+        }
+
+        // --- Insercion segura con sentencia preparada (evita inyeccion SQL) ---
+        $stmt = $conn->prepare("INSERT INTO inversion_ventas (mes, inversion, ventas) VALUES (?, ?, ?)");
+        $stmt->bind_param("sdd", $mes, $inversion, $ventas);
+        $stmt->execute();
+        $stmt->close();
+
+        if ($aviso_outlier) {
+            $msg = "Registro agregado." . $aviso_outlier;
+            $msg_tipo = "warn";
+        } else {
+            $msg = "Registro agregado correctamente.";
+            $msg_tipo = "info";
+        }
     } else {
-        $msg = "Por favor completa todos los campos correctamente.";
+        $msg = "Por favor completa todos los campos correctamente (inversion y ventas deben ser mayores a 0).";
+        $msg_tipo = "error";
     }
 }
 
@@ -31,6 +64,19 @@ foreach ($datos as $d) {
 }
 $b1 = ($n * $sxy - $sx * $sy) / ($n * $sx2 - $sx * $sx);
 $b0 = ($sy - $b1 * $sx) / $n;
+
+// Metricas de bondad de ajuste (R2, MSE, RMSE)
+$y_media = $sy / $n;
+$ss_tot  = 0; $ss_res = 0;
+foreach ($datos as $d) {
+    $y     = (float)$d['ventas'];
+    $y_est = $b0 + $b1 * (float)$d['inversion'];
+    $ss_tot += ($y - $y_media) ** 2;
+    $ss_res += ($y - $y_est) ** 2;
+}
+$r2   = $ss_tot > 0 ? 1 - $ss_res / $ss_tot : 1;
+$mse  = $ss_res / $n;
+$rmse = sqrt($mse);
 
 // Prediccion
 $x_pred = isset($_GET['x']) ? (float)$_GET['x'] : 40;
@@ -123,6 +169,8 @@ $linea  = [['x' => $x_min, 'y' => $b0 + $b1 * $x_min],
   .pred-result span { font-size: 1.6rem; font-weight: 700; color: #34d399; }
 
   .alert { background: #1e3a5f; border-left: 4px solid #3b82f6; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem; }
+  .alert.warn  { background: #422006; border-left-color: #f59e0b; }
+  .alert.error { background: #450a0a; border-left-color: #ef4444; }
 </style>
 </head>
 <body>
@@ -153,6 +201,10 @@ $linea  = [['x' => $x_min, 'y' => $b0 + $b1 * $x_min],
     <div class="card orange">
       <div class="card-label">Prediccion (X=<?= $x_pred ?>)</div>
       <div class="card-value"><?= number_format($y_pred, 2) ?></div>
+    </div>
+    <div class="card green">
+      <div class="card-label">R&sup2; (Bondad de ajuste)</div>
+      <div class="card-value"><?= number_format($r2, 4) ?></div>
     </div>
   </div>
 
@@ -190,6 +242,18 @@ $linea  = [['x' => $x_min, 'y' => $b0 + $b1 * $x_min],
         <div><small>Pendiente b1</small><strong><?= number_format($b1,4) ?></strong></div>
       </div>
 
+      <h2 style="margin-top:20px">Bondad de Ajuste</h2>
+      <div class="coef">
+        <div><small>R&sup2;</small><strong><?= number_format($r2, 4) ?></strong></div>
+        <div><small>MSE</small><strong><?= number_format($mse, 2) ?></strong></div>
+        <div><small>RMSE</small><strong><?= number_format($rmse, 2) ?></strong></div>
+      </div>
+      <div class="alert" style="margin-top:10px">
+        El modelo explica el <strong><?= number_format($r2 * 100, 2) ?>%</strong>
+        de la variabilidad de las ventas (R&sup2;).
+        Error promedio de prediccion (RMSE): <strong><?= number_format($rmse, 2) ?></strong>.
+      </div>
+
       <h2 style="margin-top:20px">Calcular Prediccion</h2>
       <form method="GET">
         <input type="number" name="x" placeholder="Valor de Inversion (X)" value="<?= $x_pred ?>" step="0.01" required>
@@ -203,7 +267,7 @@ $linea  = [['x' => $x_min, 'y' => $b0 + $b1 * $x_min],
 
     <div class="panel">
       <h2>Agregar Nuevo Registro</h2>
-      <?php if ($msg): ?><div class="alert"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+      <?php if ($msg): ?><div class="alert <?= $msg_tipo ?>"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
       <form method="POST">
         <input type="text"   name="mes"       placeholder="Mes (ej. Abril)"   required>
         <input type="number" name="inversion" placeholder="Inversion (X)"     step="0.01" min="0" required>
