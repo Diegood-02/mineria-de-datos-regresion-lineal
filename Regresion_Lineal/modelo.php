@@ -15,8 +15,11 @@ $mse  = $reg['mse'];
 $rmse = $reg['rmse'];
 $n    = $reg['n'];
 
-$puntos_x = array_map(fn($d) => (float)$d['inversion'], $datos);
-$puntos_y = array_map(fn($d) => (float)$d['ventas'],    $datos);
+$residuos = calcular_residuos($datos, $b0, $b1);
+$puntos = array_map(fn($rw) => ['x'=>$rw['x'], 'y'=>$rw['y_real'], 'mes'=>$rw['mes'], 'outlier'=>$rw['es_outlier']], $residuos);
+$puntos_residuo = array_map(fn($rw) => ['x'=>$rw['x'], 'residuo'=>$rw['residuo'], 'mes'=>$rw['mes'], 'outlier'=>$rw['es_outlier']], $residuos);
+
+$puntos_x = array_column($residuos, 'x');
 if ($n > 0) {
     $x_min = min($puntos_x) - 5;
     $x_max = max($puntos_x) + 15;
@@ -25,6 +28,16 @@ if ($n > 0) {
 }
 $linea = [['x' => $x_min, 'y' => $b0 + $b1 * $x_min],
           ['x' => $x_max, 'y' => $b0 + $b1 * $x_max]];
+
+$banda = [];
+if ($n >= 3) {
+    $pasos = 24;
+    for ($i = 0; $i <= $pasos; $i++) {
+        $x = $x_min + ($x_max - $x_min) * $i / $pasos;
+        $bp = banda_prediccion($x, $reg);
+        $banda[] = ['x'=>$x, 'yInf'=>$bp['y_inf'], 'ySup'=>$bp['y_sup']];
+    }
+}
 
 $pagina_activa = 'modelo';
 $titulo_pagina = 'Modelo de Regresion';
@@ -53,12 +66,14 @@ require __DIR__ . '/header.php';
   <h2>Bondad de Ajuste</h2>
   <div class="coef">
     <div><small>R&sup2;</small><strong><?= number_format($r2, 4) ?></strong></div>
+    <div><small>Correlacion r</small><strong><?= number_format($reg['r'], 4) ?></strong></div>
     <div><small>MSE</small><strong><?= number_format($mse, 4) ?></strong></div>
     <div><small>RMSE</small><strong><?= number_format($rmse, 4) ?></strong></div>
   </div>
   <div class="alert" style="margin-top:10px">
     El modelo explica el <strong><?= number_format($r2 * 100, 2) ?>%</strong>
     de la variabilidad de las ventas (R&sup2; = <?= number_format($r2, 4) ?>).
+    La correlacion lineal es <strong><?= number_format($reg['r'], 4) ?></strong>.
     Error promedio de prediccion (RMSE): <strong><?= number_format($rmse, 2) ?></strong>.
   </div>
 </div>
@@ -69,56 +84,64 @@ require __DIR__ . '/header.php';
   <canvas id="grafica" height="70"></canvas>
 </div>
 
-<script>
-const puntosX = <?= json_encode($puntos_x) ?>;
-const puntosY = <?= json_encode($puntos_y) ?>;
-const meses   = <?= json_encode(array_column($datos, 'mes')) ?>;
-const linea   = <?= json_encode($linea) ?>;
-const scatter = puntosX.map((x, i) => ({ x, y: puntosY[i] }));
+<!-- Analisis de residuos -->
+<div class="panel">
+  <h2>Analisis de Residuos</h2>
+  <?php if ($n < 2): ?>
+    <p style="color:var(--text-faint)">Se necesitan al menos 2 registros para analizar residuos.</p>
+  <?php else: ?>
+  <div class="grid2">
+    <div>
+      <table>
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th class="num">X</th>
+            <th class="num">Y real</th>
+            <th class="num">Y estimado</th>
+            <th class="num">Residuo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php $suma_res = 0; foreach ($residuos as $rw): $suma_res += $rw['residuo']; ?>
+          <tr class="<?= $rw['es_outlier'] ? 'outlier-row' : '' ?>">
+            <td><?= htmlspecialchars($rw['mes']) ?><?= $rw['es_outlier'] ? ' &#9888;' : '' ?></td>
+            <td class="num"><?= number_format($rw['x'], 2) ?></td>
+            <td class="num"><?= number_format($rw['y_real'], 2) ?></td>
+            <td class="num"><?= number_format($rw['y_est'], 2) ?></td>
+            <td class="num <?= $rw['residuo'] >= 0 ? 'pos' : 'neg' ?>"><?= number_format($rw['residuo'], 2) ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" style="text-align:right; color:var(--text-muted)">Suma de residuos</td>
+            <td class="num"><?= number_format($suma_res, 4) ?></td>
+          </tr>
+        </tfoot>
+      </table>
+      <p style="color:var(--text-faint); font-size:0.8rem; margin-top:10px">
+        La suma de residuos debe ser cercana a 0 si el modelo esta bien ajustado.
+      </p>
+    </div>
+    <div>
+      <canvas id="grafica-residuos" height="160"></canvas>
+    </div>
+  </div>
+  <?php endif; ?>
+</div>
 
-new Chart(document.getElementById('grafica'), {
-  data: {
-    datasets: [
-      {
-        type: 'scatter',
-        label: 'Datos reales',
-        data: scatter,
-        backgroundColor: '#60a5fa',
-        pointRadius: 8,
-        pointHoverRadius: 11,
-      },
-      {
-        type: 'line',
-        label: 'Linea de regresion',
-        data: linea,
-        borderColor: '#f59e0b',
-        borderWidth: 2.5,
-        pointRadius: 0,
-        tension: 0,
-        fill: false,
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: {
-      legend: { labels: { color: '#cbd5e1' } },
-      tooltip: {
-        callbacks: {
-          label: ctx => {
-            if (ctx.datasetIndex === 0)
-              return `${meses[ctx.dataIndex]}: (${ctx.raw.x}, ${ctx.raw.y})`;
-            return `Y = ${ctx.raw.y.toFixed(2)}`;
-          }
-        }
-      }
-    },
-    scales: {
-      x: { title: { display: true, text: 'Inversion (X)', color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
-      y: { title: { display: true, text: 'Ventas (Y)',    color: '#94a3b8' }, ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } }
-    }
-  }
+<script>
+crearGraficaRegresion('grafica', {
+  puntos: <?= json_encode($puntos) ?>,
+  linea:  <?= json_encode($linea) ?>,
+  banda:  <?= json_encode($banda) ?>,
+  ejeX: 'Inversion (X)',
+  ejeY: 'Ventas (Y)',
 });
+<?php if ($n >= 2): ?>
+crearGraficaResiduos('grafica-residuos', <?= json_encode($puntos_residuo) ?>);
+<?php endif; ?>
 </script>
 
 <?php require __DIR__ . '/footer.php'; ?>

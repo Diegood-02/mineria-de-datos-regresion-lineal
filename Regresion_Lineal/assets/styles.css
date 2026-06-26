@@ -1,0 +1,250 @@
+/* ============================================================
+   Regresion Lineal — hoja de estilos con tema claro/oscuro
+   Las variables en :root definen el tema oscuro (por defecto).
+   [data-theme="light"] sobreescribe para el tema claro.
+   ============================================================ */
+
+:root {
+  --bg:            #0f172a;
+  --surface:       #1e293b;
+  --surface-2:     #0f172a;
+  --navbar:        #0d1526;
+  --border:        #1e293b;
+  --border-2:      #334155;
+  --text:          #e2e8f0;
+  --text-muted:    #94a3b8;
+  --text-faint:    #64748b;
+  --accent:        #3b82f6;
+  --accent-strong: #1d4ed8;
+  --accent-hover:  #2563eb;
+  --accent-soft:   #60a5fa;
+  --heading:       #93c5fd;
+  --green:         #10b981;
+  --green-hover:   #059669;
+  --green-soft:    #34d399;
+  --purple:        #8b5cf6;
+  --purple-soft:   #a78bfa;
+  --orange:        #f59e0b;
+  --red:           #ef4444;
+  --red-hover:     #dc2626;
+  --row-hover:     #263348;
+  --thead-bg:      #334155;
+
+  --alert-info-bg:    #1e3a5f;
+  --alert-warn-bg:    #422006;
+  --alert-error-bg:   #450a0a;
+  --alert-success-bg: #052e16;
+
+  --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  --font: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+
+[data-theme="light"] {
+  --bg:            #f1f5f9;
+  --surface:       #ffffff;
+  --surface-2:     #f8fafc;
+  --navbar:        #ffffff;
+  --border:        #e2e8f0;
+  --border-2:      #cbd5e1;
+  --text:          #1e293b;
+  --text-muted:    #64748b;
+  --text-faint:    #94a3b8;
+  --accent:        #2563eb;
+  --accent-strong: #1d4ed8;
+  --accent-hover:  #1e40af;
+  --accent-soft:   #2563eb;
+  --heading:       #1d4ed8;
+  --green:         #059669;
+  --green-hover:   #047857;
+  --green-soft:    #059669;
+  --purple:        #7c3aed;
+  --purple-soft:   #7c3aed;
+  --orange:        #d97706;
+  --red:           #dc2626;
+  --red-hover:     #b91c1c;
+  --row-hover:     #f1f5f9;
+  --thead-bg:      #f1f5f9;
+
+  --alert-info-bg:    #dbeafe;
+  --alert-warn-bg:    #fef3c7;
+  --alert-error-bg:   #fee2e2;
+  --alert-success-bg: #d1fae5;
+
+  --shadow: 0 1px 3px rgba(15,23,42,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.25s, color 0.25s;
+}
+
+/* ── Navbar ── */
+.navbar {
+  background: var(--navbar);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.navbar-brand { display: flex; align-items: center; gap: 14px; }
+.brand-icon { font-size: 1.8rem; line-height: 1; }
+.brand-title { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.brand-sub { font-size: 0.73rem; color: var(--text-faint); margin-top: 2px; }
+.navbar-right { display: flex; align-items: center; gap: 16px; }
+.nav-links { display: flex; list-style: none; gap: 4px; }
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  transition: background 0.18s, color 0.18s;
+  white-space: nowrap;
+}
+.nav-links a:hover { background: var(--surface); color: var(--text); }
+.nav-links a.active { background: var(--accent-strong); color: #fff; font-weight: 600; }
+
+/* ── Toggle de tema ── */
+.theme-toggle {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  color: var(--text);
+  border-radius: 8px;
+  width: 40px; height: 38px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.18s, border-color 0.18s;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+
+@media (max-width: 760px) {
+  .navbar { flex-direction: column; align-items: flex-start; padding: 14px 16px; gap: 10px; }
+  .navbar-right { width: 100%; justify-content: space-between; }
+  .nav-links { flex-wrap: wrap; }
+}
+
+/* ── Layout ── */
+.container { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+.page-header { margin-bottom: 24px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.page-header h1 { font-size: 1.35rem; font-weight: 700; color: var(--text); }
+
+/* ── Cards ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.card {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 4px solid var(--accent);
+  box-shadow: var(--shadow);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.18); }
+.card.green  { border-color: var(--green); }
+.card.purple { border-color: var(--purple); }
+.card.orange { border-color: var(--orange); }
+.card-label  { font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.card-icon   { font-size: 0.95rem; }
+.card-value  { font-size: 1.7rem; font-weight: 700; }
+
+/* Badge de calidad (R²) */
+.badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.03em; }
+.badge.good { background: rgba(16,185,129,0.18); color: var(--green-soft); }
+.badge.mid  { background: rgba(245,158,11,0.18); color: var(--orange); }
+.badge.bad  { background: rgba(239,68,68,0.18);  color: var(--red); }
+
+/* ── Grid ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* ── Panels ── */
+.panel { background: var(--surface); border-radius: 12px; padding: 22px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.panel h2 { font-size: 1rem; font-weight: 600; color: var(--heading); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+canvas { width: 100% !important; height: 340px !important; }
+#grafica-residuos { height: 300px !important; }
+@media (max-width: 760px) { canvas { height: 260px !important; } }
+
+/* ── Table ── */
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+thead th { background: var(--thead-bg); padding: 10px 14px; text-align: left; color: var(--text-muted); font-weight: 600; }
+tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border-2); vertical-align: middle; }
+tbody tr:hover { background: var(--row-hover); }
+tbody tr.outlier-row { background: rgba(239,68,68,0.12); }
+tbody tr.outlier-row:hover { background: rgba(239,68,68,0.20); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.pos { color: var(--green-soft); }
+.neg { color: var(--red); }
+
+/* ── Equation & Metrics ── */
+.ecuacion {
+  background: var(--surface-2); border-radius: 8px; padding: 14px 18px;
+  font-size: 1.15rem; font-weight: 700; color: var(--accent-soft);
+  text-align: center; margin-bottom: 16px; border: 1px solid var(--accent-strong);
+}
+.coef { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.coef div { flex: 1; min-width: 80px; background: var(--surface-2); border-radius: 8px; padding: 10px 14px; text-align: center; }
+.coef small { color: var(--text-muted); font-size: 0.78rem; }
+.coef strong { display: block; font-size: 1.3rem; color: var(--purple-soft); }
+
+/* ── Forms ── */
+form input, form select {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border-2);
+  color: var(--text); border-radius: 8px; padding: 9px 12px;
+  font-size: 0.95rem; margin-bottom: 10px; font-family: var(--font);
+}
+form input:focus, form select:focus { outline: none; border-color: var(--accent); }
+.field-label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
+
+/* Slider de prediccion */
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 6px; background: var(--border-2); border-radius: 999px; padding: 0; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid #fff; }
+input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid #fff; }
+
+/* ── Buttons ── */
+.btn {
+  width: 100%; padding: 10px; background: var(--accent); color: white;
+  border: none; border-radius: 8px; font-size: 1rem; cursor: pointer;
+  font-weight: 600; transition: background 0.2s; font-family: var(--font);
+}
+.btn:hover { background: var(--accent-hover); }
+.btn.green { background: var(--green); }
+.btn.green:hover { background: var(--green-hover); }
+.btn.ghost { background: transparent; border: 1px solid var(--border-2); color: var(--text); }
+.btn.ghost:hover { background: var(--surface-2); }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-row .btn { width: auto; flex: 1; min-width: 140px; }
+.btn-sm {
+  padding: 4px 10px; color: white;
+  border: none; border-radius: 6px; font-size: 0.78rem;
+  cursor: pointer; font-weight: 600; transition: background 0.2s;
+}
+.btn-sm.del  { background: var(--red); }
+.btn-sm.del:hover  { background: var(--red-hover); }
+.btn-sm.edit { background: var(--accent); }
+.btn-sm.edit:hover { background: var(--accent-hover); }
+.acciones-cell { display: flex; gap: 6px; justify-content: center; }
+.acciones-cell form { margin: 0; }
+
+/* ── Prediction result ── */
+.pred-result {
+  margin-top: 14px; background: var(--surface-2); border-radius: 8px;
+  padding: 20px; text-align: center; border: 1px solid var(--green);
+}
+.pred-result span { font-size: 2rem; font-weight: 700; color: var(--green-soft); display: block; margin-top: 6px; }
+.pred-interval { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; }
+
+/* ── Alerts ── */
+.alert { background: var(--alert-info-bg); border-left: 4px solid var(--accent); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem; }
+.alert.warn    { background: var(--alert-warn-bg); border-left-color: var(--orange); }
+.alert.error   { background: var(--alert-error-bg); border-left-color: var(--red); }
+.alert.success { background: var(--alert-success-bg); border-left-color: var(--green); }
